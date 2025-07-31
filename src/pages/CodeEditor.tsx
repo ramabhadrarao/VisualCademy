@@ -3,12 +3,18 @@ import { Layout } from '../components/Layout';
 import { CodeExplanationPanel } from '../components/CodeExplanationPanel';
 import { MemoryVisualizer } from '../components/MemoryVisualizer';
 import { ExecutionResult } from '../components/ExecutionResult';
+import { AIChat } from '../components/AIChat';
+import { ProgramManager } from '../components/ProgramManager';
+import { TestRunner } from '../components/TestRunner';
 import { useAuth } from '../contexts/AuthContext';
 import { CCodeExplainer } from '../utils/codeExplainer';
 import { CodeExplanation, ExecutionResult as ExecutionResultType } from '../types';
 import Editor from '@monaco-editor/react';
 import axios from 'axios';
-import { Play, Save, FileText, Cpu } from 'lucide-react';
+import { 
+  Play, Save, FileText, Cpu, MessageSquare, FolderOpen, 
+  TestTube, BookOpen, Lightbulb, Bug, FileCode 
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -69,8 +75,13 @@ export const CodeEditor: React.FC = () => {
   const [explanations, setExplanations] = useState<CodeExplanation[]>([]);
   const [executionResult, setExecutionResult] = useState<ExecutionResultType | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'explanations' | 'memory'>('explanations');
+  const [activeTab, setActiveTab] = useState<'explanations' | 'memory' | 'ai' | 'tests'>('explanations');
+  const [showProgramManager, setShowProgramManager] = useState(false);
+  const [currentProgramId, setCurrentProgramId] = useState<string | null>(null);
+  const [currentProgramTitle, setCurrentProgramTitle] = useState<string>('Untitled');
+  
   const CODE_EXECUTION_API_URL = import.meta.env.VITE_CODE_EXECUTION_API_URL || 'http://43.250.40.133:3000';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (code.trim()) {
@@ -98,6 +109,16 @@ export const CodeEditor: React.FC = () => {
       });
 
       setExecutionResult(response.data);
+      
+      // Update program statistics if loaded from saved program
+      if (currentProgramId) {
+        try {
+          await axios.post(`${API_URL}/api/programs/${currentProgramId}/execute`);
+        } catch (error) {
+          console.error('Failed to update program statistics:', error);
+        }
+      }
+      
       toast.success('Code executed successfully!');
     } catch (error: any) {
       const errorResult: ExecutionResultType = {
@@ -116,9 +137,57 @@ export const CodeEditor: React.FC = () => {
     }
   };
 
-  const handleSaveCode = () => {
-    localStorage.setItem('saved-code', code);
-    toast.success('Code saved locally!');
+  const handleLoadProgram = (program: any) => {
+    setCode(program.code);
+    setCurrentProgramId(program._id);
+    setCurrentProgramTitle(program.title);
+    setExecutionResult(null);
+    toast.success(`Loaded: ${program.title}`);
+  };
+
+  const handleNewProgram = () => {
+    setCode(DEFAULT_CODE);
+    setCurrentProgramId(null);
+    setCurrentProgramTitle('Untitled');
+    setExecutionResult(null);
+    toast.success('New program created');
+  };
+
+  const getAIInsights = async (type: 'improvements' | 'debug' | 'explain') => {
+    if (!currentProgramId) {
+      toast.error('Please save your program first');
+      return;
+    }
+
+    try {
+      let response;
+      switch (type) {
+        case 'improvements':
+          response = await axios.post(`${API_URL}/api/programs/${currentProgramId}/ai/improvements`);
+          toast.success('Got improvement suggestions!');
+          break;
+        case 'debug':
+          if (executionResult?.stderr) {
+            response = await axios.post(`${API_URL}/api/programs/${currentProgramId}/ai/debug`, {
+              error: executionResult.stderr
+            });
+            toast.success('Debug suggestions ready!');
+          } else {
+            toast.error('No errors to debug');
+            return;
+          }
+          break;
+        case 'explain':
+          response = await axios.post(`${API_URL}/api/programs/${currentProgramId}/ai/explain`);
+          toast.success('Code explanation ready!');
+          break;
+      }
+      
+      // Show response in AI chat tab
+      setActiveTab('ai');
+    } catch (error) {
+      toast.error('Failed to get AI insights');
+    }
   };
 
   if (!user?.isApproved) {
@@ -143,10 +212,63 @@ export const CodeEditor: React.FC = () => {
         <div className="max-w-[1600px] mx-auto">
           {/* Header */}
           <div className="mb-4">
-            <h1 className="text-3xl font-bold text-white mb-2">C Code Visualizer</h1>
-            <p className="text-gray-400">
-              Write C code and see real-time explanations with memory visualization
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-1">
+                  C Code Visualizer
+                  {currentProgramTitle && (
+                    <span className="text-lg text-purple-400 ml-3">
+                      - {currentProgramTitle}
+                    </span>
+                  )}
+                </h1>
+                <p className="text-gray-400">
+                  Write C code and see real-time explanations with memory visualization
+                </p>
+              </div>
+              
+              {/* Quick Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleNewProgram}
+                  className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center gap-2 text-sm transition-colors"
+                  title="New Program"
+                >
+                  <FileCode className="h-4 w-4" />
+                  New
+                </button>
+                <button
+                  onClick={() => setShowProgramManager(true)}
+                  className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center gap-2 text-sm transition-colors"
+                  title="Open Program Manager"
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  Open
+                </button>
+                {currentProgramId && (
+                  <>
+                    <button
+                      onClick={() => getAIInsights('improvements')}
+                      className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 text-sm transition-colors"
+                      title="Get AI Improvements"
+                    >
+                      <Lightbulb className="h-4 w-4" />
+                      Improve
+                    </button>
+                    {executionResult?.stderr && (
+                      <button
+                        onClick={() => getAIInsights('debug')}
+                        className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2 text-sm transition-colors"
+                        title="Debug with AI"
+                      >
+                        <Bug className="h-4 w-4" />
+                        Debug
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Main Editor Layout - Two equal columns */}
@@ -162,7 +284,7 @@ export const CodeEditor: React.FC = () => {
                   </h3>
                   <div className="flex gap-2">
                     <button
-                      onClick={handleSaveCode}
+                      onClick={() => setShowProgramManager(true)}
                       className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
                     >
                       <Save className="h-4 w-4" />
@@ -205,7 +327,7 @@ export const CodeEditor: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column - Explanations and Memory */}
+            {/* Right Column - Tabbed Content */}
             <div className="flex flex-col min-h-0">
               {/* Tab Navigation */}
               <div className="flex mb-4 flex-shrink-0">
@@ -217,34 +339,94 @@ export const CodeEditor: React.FC = () => {
                       : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
                   }`}
                 >
-                  <FileText className="h-4 w-4" />
+                  <BookOpen className="h-4 w-4" />
                   Explanations
                 </button>
                 <button
                   onClick={() => setActiveTab('memory')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-r-lg font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
                     activeTab === 'memory'
                       ? 'bg-purple-600 text-white'
                       : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
                   }`}
                 >
                   <Cpu className="h-4 w-4" />
-                  Memory Visualization
+                  Memory
+                </button>
+                <button
+                  onClick={() => setActiveTab('ai')}
+                  className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
+                    activeTab === 'ai'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                  }`}
+                  disabled={!currentProgramId}
+                  title={!currentProgramId ? 'Save program first' : ''}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  AI Chat
+                </button>
+                <button
+                  onClick={() => setActiveTab('tests')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-r-lg font-medium transition-colors ${
+                    activeTab === 'tests'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                  }`}
+                  disabled={!currentProgramId}
+                  title={!currentProgramId ? 'Save program first' : ''}
+                >
+                  <TestTube className="h-4 w-4" />
+                  Tests
                 </button>
               </div>
 
               {/* Tab Content - Full height */}
               <div className="flex-1 min-h-0">
-                {activeTab === 'explanations' ? (
+                {activeTab === 'explanations' && (
                   <CodeExplanationPanel explanations={explanations} />
-                ) : (
+                )}
+                {activeTab === 'memory' && (
                   <MemoryVisualizer explanations={explanations} />
+                )}
+                {activeTab === 'ai' && currentProgramId && (
+                  <AIChat 
+                    programId={currentProgramId} 
+                    programCode={code}
+                    onClose={() => setActiveTab('explanations')}
+                  />
+                )}
+                {activeTab === 'tests' && currentProgramId && (
+                  <TestRunner 
+                    programId={currentProgramId}
+                    programCode={code}
+                  />
+                )}
+                {(activeTab === 'ai' || activeTab === 'tests') && !currentProgramId && (
+                  <div className="bg-slate-800 rounded-lg border border-slate-700 h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <Save className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-400 text-lg mb-2">Save your program first</p>
+                      <p className="text-gray-500 text-sm">
+                        Click the Save button to enable AI features and test cases
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Program Manager Modal */}
+      {showProgramManager && (
+        <ProgramManager
+          currentCode={code}
+          onLoadProgram={handleLoadProgram}
+          onClose={() => setShowProgramManager(false)}
+        />
+      )}
     </Layout>
   );
 };

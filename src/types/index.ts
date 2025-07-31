@@ -43,3 +43,36 @@ export interface PendingUser {
   email: string;
   createdAt: string;
 }
+
+export interface Program {
+  _id: string;
+  title: string;
+  description: string;
+  code: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  statistics: {
+    totalRuns: number;
+    successfulRuns: number;
+    failedRuns: number;
+    averageExecutionTime: number;
+  };
+  testCases?: TestCase[];
+  aiConversations?: Message[];
+}
+
+export interface TestCase {
+  input: string;
+  expectedOutput: string;
+  description: string;
+  passed?: boolean;
+  actualOutput?: string;
+  error?: string;
+}
+
+export interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
