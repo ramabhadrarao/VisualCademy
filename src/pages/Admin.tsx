@@ -11,6 +11,7 @@ export const Admin: React.FC = () => {
   const { user } = useAuth();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -20,7 +21,7 @@ export const Admin: React.FC = () => {
 
   const fetchPendingUsers = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/admin/pending-users');
+      const response = await axios.get(`${API_URL}/api/admin/pending-users`);
       setPendingUsers(response.data.users);
     } catch (error) {
       toast.error('Failed to fetch pending users');
@@ -31,7 +32,7 @@ export const Admin: React.FC = () => {
 
   const handleApproveUser = async (userId: string) => {
     try {
-      await axios.post(`http://localhost:5000/api/admin/approve-user/${userId}`);
+      await axios.post(`${API_URL}/api/admin/approve-user/${userId}`);
       setPendingUsers(prev => prev.filter(u => u._id !== userId));
       toast.success('User approved successfully!');
     } catch (error) {
@@ -41,7 +42,7 @@ export const Admin: React.FC = () => {
 
   const handleRejectUser = async (userId: string) => {
     try {
-      await axios.delete(`http://localhost:5000/api/admin/reject-user/${userId}`);
+      await axios.delete(`${API_URL}/api/admin/reject-user/${userId}`);
       setPendingUsers(prev => prev.filter(u => u._id !== userId));
       toast.success('User rejected successfully!');
     } catch (error) {

@@ -15,13 +15,50 @@ import toast from 'react-hot-toast';
 const DEFAULT_CODE = `#include <stdio.h>
 
 int main() {
+    // Basic data types
     int x = 30;
     int y = 10;
     int z = x + y;
     
-    printf("x = %d\\n", x);
+    // Unsigned types
+    unsigned int counter = 255;
+    
+    // Different sizes
+    short small_num = 32767;
+    long big_num = 1234567890;
+    
+    // Floating point
+    float pi = 3.14159;
+    double precision = 3.141592653589793;
+    
+    // Character
+    char grade = 'A';
+    char initial = 'Z';
+    
+    // Arrays
+    int numbers[5] = {10, 20, 30, 40, 50};
+    char name[10] = "Hello";
+    float scores[3] = {98.5, 87.3, 92.1};
+    
+    // Pointers
+    int *ptr = &x;
+    int **ptr_to_ptr = &ptr;
+    
+    // Array operations
+    numbers[2] = 99;
+    
+    // Calculations
+    z = x + y;
+    counter = counter + 1;
+    
+    // Output
+    printf("x = %d at address %p\\n", x, &x);
     printf("y = %d\\n", y);
     printf("z = x + y = %d\\n", z);
+    printf("pi = %.2f\\n", pi);
+    printf("grade = %c (ASCII: %d)\\n", grade, grade);
+    printf("Array element: %d\\n", numbers[2]);
+    printf("Pointer value: %d\\n", *ptr);
     
     return 0;
 }`;
@@ -33,6 +70,7 @@ export const CodeEditor: React.FC = () => {
   const [executionResult, setExecutionResult] = useState<ExecutionResultType | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [activeTab, setActiveTab] = useState<'explanations' | 'memory'>('explanations');
+  const CODE_EXECUTION_API_URL = import.meta.env.VITE_CODE_EXECUTION_API_URL || 'http://43.250.40.133:3000';
 
   useEffect(() => {
     if (code.trim()) {
@@ -53,7 +91,7 @@ export const CodeEditor: React.FC = () => {
     setExecutionResult(null);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/v1/execute', {
+      const response = await axios.post(`${CODE_EXECUTION_API_URL}/api/v1/execute`, {
         code: code,
         language: 'c',
         timeout: 10000
@@ -79,7 +117,6 @@ export const CodeEditor: React.FC = () => {
   };
 
   const handleSaveCode = () => {
-    // In a real app, you'd save to a database
     localStorage.setItem('saved-code', code);
     toast.success('Code saved locally!');
   };
@@ -103,21 +140,22 @@ export const CodeEditor: React.FC = () => {
   return (
     <Layout>
       <div className="min-h-screen p-4">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-[1600px] mx-auto">
           {/* Header */}
-          <div className="mb-6">
+          <div className="mb-4">
             <h1 className="text-3xl font-bold text-white mb-2">C Code Visualizer</h1>
             <p className="text-gray-400">
               Write C code and see real-time explanations with memory visualization
             </p>
           </div>
 
-          {/* Main Editor Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-200px)]">
-            {/* Left Panel - Code Editor */}
-            <div className="flex flex-col">
-              <div className="bg-slate-800 rounded-lg border border-slate-700 flex-1 flex flex-col">
-                <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+          {/* Main Editor Layout - Two equal columns */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ height: 'calc(100vh - 160px)' }}>
+            {/* Left Column - Code Editor and Output */}
+            <div className="flex flex-col gap-4 min-h-0">
+              {/* Code Editor */}
+              <div className="bg-slate-800 rounded-lg border border-slate-700 flex-1 flex flex-col min-h-0" style={{ height: '60%' }}>
+                <div className="p-4 border-b border-slate-700 flex items-center justify-between flex-shrink-0">
                   <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                     <FileText className="h-5 w-5 text-blue-400" />
                     Code Editor
@@ -141,7 +179,7 @@ export const CodeEditor: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="flex-1">
+                <div className="flex-1 min-h-0">
                   <Editor
                     height="100%"
                     defaultLanguage="c"
@@ -162,15 +200,15 @@ export const CodeEditor: React.FC = () => {
               </div>
 
               {/* Execution Result */}
-              <div className="mt-4">
+              <div className="flex-1 overflow-y-auto" style={{ height: '40%' }}>
                 <ExecutionResult result={executionResult} loading={isExecuting} />
               </div>
             </div>
 
-            {/* Right Panel - Explanations and Memory */}
-            <div className="flex flex-col">
+            {/* Right Column - Explanations and Memory */}
+            <div className="flex flex-col min-h-0">
               {/* Tab Navigation */}
-              <div className="flex mb-4">
+              <div className="flex mb-4 flex-shrink-0">
                 <button
                   onClick={() => setActiveTab('explanations')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-l-lg font-medium transition-colors ${
@@ -191,12 +229,12 @@ export const CodeEditor: React.FC = () => {
                   }`}
                 >
                   <Cpu className="h-4 w-4" />
-                  Memory
+                  Memory Visualization
                 </button>
               </div>
 
-              {/* Tab Content */}
-              <div className="flex-1">
+              {/* Tab Content - Full height */}
+              <div className="flex-1 min-h-0">
                 {activeTab === 'explanations' ? (
                   <CodeExplanationPanel explanations={explanations} />
                 ) : (

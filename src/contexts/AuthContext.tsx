@@ -16,6 +16,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -29,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/auth/me');
+      const response = await axios.get(`${API_URL}/api/auth/me`);
       setUser(response.data.user);
     } catch (error) {
       localStorage.removeItem('token');
@@ -41,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', {
+      const response = await axios.post(`${API_URL}/api/auth/login`, {
         email,
         password,
       });
@@ -59,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (username: string, email: string, password: string) => {
     try {
-      await axios.post('http://localhost:5000/api/auth/register', {
+      await axios.post(`${API_URL}/api/auth/register`, {
         username,
         email,
         password,
